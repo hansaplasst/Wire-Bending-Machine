@@ -4,9 +4,9 @@
 
 #include "ioDebug.h"
 
-#define limitSwitch 11  // Arduino Pin #
-#define starSwitch 12   // Arduino Pin #
-#define benderPin 2     // Arduino Pin #
+#define limitSwitch 11       // Arduino Pin #
+#define starSwitch 12        // Arduino Pin #
+#define benderPin 2          // Arduino Pin #
 StreamEx mySerial = Serial;  // Declare mySerial to enable ioDebug mySerial.printf
 
 // Define the stepper motors and the pins the will use
@@ -28,7 +28,7 @@ void stand();
 void blink(uint16_t count = 1, uint16_t ms = 100);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(BAUDRATE);
   DPRINTF(1, "Initializing...\n");
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -37,7 +37,7 @@ void setup() {
   benderPinServo.attach(benderPin);
 
   benderPinServo.write(40);  // Initial position, bending pin up
-  
+
   // Stepper motors max speed
   feederStepper.setMaxSpeed(2000);
   zAxisStepper.setMaxSpeed(2000);

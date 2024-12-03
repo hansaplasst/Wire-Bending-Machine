@@ -1,3 +1,19 @@
+/**
+ * @file ioDebug.h
+ *
+ * ioDebug is an Arduino debug library that leverages printf statements for streamlined debugging.
+ *
+ * Utilize its statements to display debug output in the terminal console.
+ * For release versions, simply comment out DEBUG_ENABLED.
+ * This ensures that string memory is excluded from compilation, optimizing memory for runtime tasks.
+ *
+ * @copyright (c) 2024 hansaplasst
+ * @author hansaplasst
+ *
+ * @version 0.0.1
+ * @license MIT
+ */
+
 #ifndef IO_DEBUG_H
 #define IO_DEBUG_H
 
