@@ -3,19 +3,18 @@
 #include <Servo.h>
 #include <dprintf.h>
 
-#define limitSwitch 11        // Arduino Pin #
-#define starSwitch A0         // Arduino Pin # Use Analog pin as digital input since it's in the front
-#define starSwitchGND A2      // Arduino StarSwitch GND
 #define benderPinA 2          // Arduino Pin #
-#define benderPinDelay 500    // Time to set de benderpin to the UP/Down position
+#define limitSwitch 11        // Arduino Pin #
 #define benderPinUpPos 45     // Up position in degrees
 #define benderPinDownPos 135  // Down position in degrees
+#define starSwitch A0         // Arduino Pin # Use Analog pin as digital input since it's in the front
+#define starSwitchGND A2      // Arduino StarSwitch GND
 
 long stepsPerKeyPress = 100;  // Aantal stappen per manuele toetsaanslag
 
-float benderStartPos = -325;
-float feederPrecision = 12;  // constant that map the mm value to number of steps the stepper has to move
-float anglePrecision = 18;   // constant that maps the angle degree to the number ot steps the stepper has to move
+float benderStartPos = -365;   // Start position of the bender pin
+float feederPrecision = 12;    // constant that maps the mm value to number of steps the stepper has to move
+float anglePrecision = 5.769;  // constant that maps the angle degree to the number ot steps the stepper has to move
 bool UP = true;
 bool DOWN = false;
 
@@ -40,16 +39,15 @@ void cube();
 void stand();
 void blink(uint16_t count = 1, uint16_t ms = 100);
 void rotate(AccelStepper &stepper, float steps, float speed = 1200, unsigned long rotateDelay = 100, bool limitDetection = true);
-void benderPin(bool up);
+void benderPin(bool up, int msDelay = 400);
 void (*resetFunc)(void) = 0;  // create a standard reset function
 
 void setup() {
   Serial.begin(BAUDRATE);
   DPRINTF(1, "Initializing...\n");
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(starSwitchGND, OUTPUT);  // Set Analog input to digital zero
-  pinMode(starSwitch, INPUT);      // Set Analog input to digital
-  pinMode(starSwitch, INPUT_PULLUP);
+  pinMode(starSwitchGND, OUTPUT);     // Set Analog input to digital zero
+  pinMode(starSwitch, INPUT_PULLUP);  // Set Analog input to digital
 
   benderPinServo.attach(benderPinA);  // Init Bender pin
   benderPin(DOWN);                    // Set Bender pin down
@@ -77,42 +75,47 @@ void setup() {
 }
 
 void loop() {
-  // Controleer of er data beschikbaar is op de seriële poort
-  if (Serial.available()) {
-    char input = Serial.read();  // Lees het ingevoerde teken
+  int starBtnPressed;
+  starBtnPressed = (digitalRead(starSwitch) == 0);
 
-    switch (input) {
-      case '6':  // Pijltje rechts (Feeder rechtsom)
-        rotate(feederStepper, stepsPerKeyPress);
-        break;
-      case '4':  // Pijltje links (Feeder linksom)
-        rotate(feederStepper, -stepsPerKeyPress);
-        break;
-      case '8':  // Pijltje omhoog (Bender rechtsom)
-        rotate(benderStepper, stepsPerKeyPress, 1200, 100, false);
-        break;
-      case '2':  // Pijltje omlaag (Bender linksom)
-        rotate(benderStepper, -stepsPerKeyPress, -1200, 100, false);
-        break;
-      case '9':  // Toets 'PgUp' (Rotation linksom)
-        rotate(rotationStepper, stepsPerKeyPress);
-        break;
-      case '3':  // Toets 'pgDn' (Rotation rechtsom)
-        rotate(rotationStepper, -stepsPerKeyPress);
-        break;
-      case '+':  // Toets '+' (RESET)
-        DPRINTF(1, "\n *** RESET ***");
-        resetFunc();
-        break;
-      case '-':  // Toets '-' (Rotation rechtsom)
-        DPRINTF(1, "\n *** NOT IMPLEMENTED ***");
-        break;
-      case '*':  // Toets '*' (Ster maken)
-        star();
-        break;
-      default:
-        DPRINTF(1, "\nOngeldige invoer, gebruik de nummers:\n 6(Feeder >), 4(Feeder <), 8(Bender UP), 2(Bender DOWN), 9(Rotate UP), 3(Rotate DOWN), *(STER), +(RESET)");
-        break;
+  if (Serial.available() || starBtnPressed) {  // Controleer of er data beschikbaar is op de seriële poort of dat de sterknop is ingedrukt
+    if (starBtnPressed)
+      star();
+    else {
+      char input = Serial.read();  // Lees het ingevoerde teken
+      switch (input) {
+        case '6':  // Pijltje rechts (Feeder rechtsom)
+          rotate(feederStepper, stepsPerKeyPress);
+          break;
+        case '4':  // Pijltje links (Feeder linksom)
+          rotate(feederStepper, -stepsPerKeyPress);
+          break;
+        case '8':  // Pijltje omhoog (Bender rechtsom)
+          rotate(benderStepper, stepsPerKeyPress, 1200, 100, false);
+          break;
+        case '2':  // Pijltje omlaag (Bender linksom)
+          rotate(benderStepper, -stepsPerKeyPress, -1200, 100, false);
+          break;
+        case '9':  // Toets 'PgUp' (Rotation linksom)
+          rotate(rotationStepper, stepsPerKeyPress);
+          break;
+        case '3':  // Toets 'pgDn' (Rotation rechtsom)
+          rotate(rotationStepper, -stepsPerKeyPress);
+          break;
+        case '+':  // Toets '+' (RESET)
+          DPRINTF(1, "\n *** RESET ***");
+          resetFunc();
+          break;
+        case '-':  // Toets '-' (Rotation rechtsom)
+          DPRINTF(1, "\n *** NOT IMPLEMENTED ***");
+          break;
+        case '*':  // Toets '*' (Ster maken)
+          star();
+          break;
+        default:
+          DPRINTF(1, "\nOngeldige invoer, gebruik de nummers:\n 6(Feeder >), 4(Feeder <), 8(Bender UP), 2(Bender DOWN), 9(Rotate UP), 3(Rotate DOWN), *(STER), +(RESET)");
+          break;
+      }
     }
   }
 }
@@ -128,14 +131,14 @@ void blink(uint16_t count, uint16_t ms) {
   }
 }
 
-void benderPin(bool up) {
+void benderPin(bool up, int msDelay) {
   DPRINTF(1, "Bender pin %s\n", up ? "UP" : "DOWN");
   benderPinServo.write(up ? benderPinUpPos : benderPinDownPos);  // Bender pin up
-  delay(benderPinDelay);
+  delay(msDelay);
 }
 
 void rotate(AccelStepper &stepper, float steps, float speed, unsigned long rotateDelay, bool limitDetection) {
-  DPRINTF(1, "\n rotate %s, %.2f steps\n", steps > 0 ? "rechtsom" : "linksom", steps);
+  DPRINTF(1, " rotate %s, %.2f steps\n", steps > 0 ? "rechtsom" : "linksom", steps);
 
   stepper.move(steps);
   if (steps < 0 && speed > 0) {
@@ -183,11 +186,11 @@ void star() {
 
     // Bend the wire 52 degrees
     DPRINTF(1, "Bend wire 52°\n");
-    rotate(benderStepper, -52 * anglePrecision, -700, 0);
+    rotate(benderStepper, -55 * anglePrecision, -700, 0);
 
     // Go back 52 degrees to initial position
     DPRINTF(1, "Go back to initial position: -52°\n");
-    rotate(benderStepper, 52 * anglePrecision);
+    rotate(benderStepper, 55 * anglePrecision);
 
     // Feed the same distance again
     DPRINTF(1, "Run Feeder Stepper again until it reaches feeder lenght: %imm\n", feed);
@@ -206,9 +209,10 @@ void star() {
     rotate(benderStepper, 105 * anglePrecision, 700);
 
     // Set bender to new initial position, for bending in the other direction
-    DPRINTF(1, "Move Bender to start position\n");
+    DPRINTF(1, "Move Bender to initial start position\n");
     rotate(benderStepper, benderStartPos, 1200, 0, false);
     benderPin(DOWN);
+    DPRINTF(1, "RUN(%i) FINISHED.\n", count + 1);
     count++;
   }
   count = 0;
